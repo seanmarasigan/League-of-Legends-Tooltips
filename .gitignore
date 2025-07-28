@@ -11,7 +11,7 @@ __pycache__/
 *.ipynb
 
 # Test file
-test.py
+test.*
 
 # OS-specific files
 .DS_Store
@@ -27,3 +27,11 @@ Thumbs.db
 # Logs and temporary files
 *.log
 *.tmp
+
+
+# Node modules
+node_modules/
+
+# Others
+*.zip
+.DS_Store
