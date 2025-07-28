@@ -1,0 +1,27 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live LoL Tips</title>
+</head>
+<body>
+  <h1>🎮 Live Game Data</h1>
+  <pre id="dataDisplay">Waiting for data...</pre>
+
+  <script>
+    const display = document.getElementById("dataDisplay");
+
+    const socket = new WebSocket("ws://localhost:3000");
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      display.textContent = JSON.stringify(data, null, 2); // Pretty print
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+  </script>
+</body>
+</html>
