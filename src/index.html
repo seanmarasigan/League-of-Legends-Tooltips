@@ -1,27 +1,262 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Live Data</title>
+  <meta charset="UTF-8" />
+  <title>Champion HUD Overlay</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background-color: transparent;
+    }
+
+    #stream {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #hud {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: flex-end;
+      gap: 30px;
+      font-family: sans-serif;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    #stream:hover #hud {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .portrait {
+      width: 100px;
+      height: 100px;
+      background: #444;
+      border: 2px solid #888;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .abilities, .spells {
+      display: flex;
+      gap: 6px;
+    }
+
+    .items {
+      display: grid;
+      grid-template-columns: repeat(3, 40px);
+      grid-template-rows: repeat(2, 40px);
+      gap: 6px;
+    }
+
+    .item-box, .ability-box, .spell-box, .trinket {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      border: 1px solid #777;
+      background: #2a2a2a;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .item-box { background: #222; border-color: #666; }
+    .trinket { background: #555; border: 2px solid #aaa; }
+
+    .spell-box img {
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+    }
+
+    .tooltip {
+      position: absolute;
+      bottom: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #fff;
+      padding: 4px 6px;
+      font-size: 12px;
+      border-radius: 4px;
+      display: none;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 99;
+    }
+
+    .ability-box:hover .tooltip,
+    .item-box:hover .tooltip,
+    .spell-box:hover .tooltip,
+    .trinket:hover .tooltip {
+      display: block;
+    }
+
+    .portrait:hover,
+    .ability-box:hover,
+    .spell-box:hover,
+    .item-box:hover,
+    .trinket:hover {
+      cursor: pointer;
+    }
+
+    .portrait,
+    .spell-box,
+    .ability-box,
+    .item-box,
+    .trinket {
+      cursor: pointer !important;
+    }
+  </style>
 </head>
 <body>
-  <h1>Live Game Data</h1>
-  <pre id="dataDisplay">Waiting for data...</pre>
+  <div id="stream">
+    <div id="hud">
+      <div class="portrait" id="portraitBox">portrait</div>
+
+      <div class="abilities" id="abilitiesContainer">
+        <!-- abilities here -->
+      </div>
+
+      <div class="spells" id="spellsContainer">
+        <!-- spells here -->
+      </div>
+
+      <div class="items" id="itemsContainer">
+        <!-- items 3x2 -->
+      </div>
+
+      <div class="trinket" id="trinketBox">
+        <!-- trinket -->
+      </div>
+    </div>
+  </div>
 
   <script>
-    const display = document.getElementById("dataDisplay");
+    const socket = new WebSocket("ws://localhost:8080");
 
-    const socket = new WebSocket("ws://localhost:3000");
+    const abilitiesContainer = document.getElementById("abilitiesContainer");
+    const spellsContainer = document.getElementById("spellsContainer");
+    const itemsContainer = document.getElementById("itemsContainer");
+    const trinketBox = document.getElementById("trinketBox");
+
+    const spellNameToIcon = {
+      "Flash": "SummonerFlash.png",
+      "Smite": "SummonerSmite.png",
+      "Heal": "SummonerHeal.png",
+      "Ignite": "SummonerDot.png",
+      "Ghost": "SummonerHaste.png",
+      "Teleport": "SummonerTeleport.png",
+      "Barrier": "SummonerBarrier.png",
+      "Exhaust": "SummonerExhaust.png",
+      "Clarity": "SummonerMana.png",
+      "Cleanse": "SummonerBoost.png",
+      "Mark": "SummonerSnowball.png"
+    };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      display.textContent = JSON.stringify(data, null, 2); // Pretty print
+      const abilities = data.activePlayer?.abilities || {};
+      const allPlayers = data.allPlayers || [];
+      const activeName = data.activePlayer?.summonerName;
+      const playerData = allPlayers.find(p => p.summonerName === activeName);
+      const items = playerData?.items || [];
+      const summonerSpells = playerData?.summonerSpells || {};
+
+      // Abilities
+      const abilityOrder = ['Passive', 'Q', 'W', 'E', 'R'];
+      abilitiesContainer.innerHTML = "";
+      abilityOrder.forEach(key => {
+        if (!abilities[key]) return;
+        const box = document.createElement("div");
+        box.className = "ability-box";
+        box.textContent = key;
+
+        const tooltip = document.createElement("div");
+        tooltip.className = "tooltip";
+        tooltip.textContent = abilities[key].displayName || key;
+
+        box.appendChild(tooltip);
+        abilitiesContainer.appendChild(box);
+      });
+
+      // Spells
+      spellsContainer.innerHTML = "";
+      ["summonerSpellOne", "summonerSpellTwo"].forEach(spellKey => {
+        const spell = summonerSpells[spellKey];
+        if (!spell) return;
+        const icon = spellNameToIcon[spell.displayName] || "SummonerFlash.png";
+
+        const box = document.createElement("div");
+        box.className = "spell-box";
+
+        const img = document.createElement("img");
+        img.src = `https://ddragon.leagueoflegends.com/cdn/15.14.1/img/spell/${icon}`;
+        img.alt = spell.displayName;
+
+        const tooltip = document.createElement("div");
+        tooltip.className = "tooltip";
+        tooltip.textContent = spell.displayName;
+
+        box.appendChild(img);
+        box.appendChild(tooltip);
+        spellsContainer.appendChild(box);
+      });
+
+      // Items
+      itemsContainer.innerHTML = "";
+      const itemSlots = Array(6).fill(null);
+      let trinket = null;
+
+      items.forEach(item => {
+        if (item.slot >= 0 && item.slot <= 5) itemSlots[item.slot] = item;
+        else if (item.slot === 6) trinket = item;
+      });
+
+      itemSlots.forEach(item => {
+        const box = document.createElement("div");
+        box.className = "item-box";
+        if (item) {
+          const tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          tooltip.textContent = item.displayName || "Item";
+          box.appendChild(tooltip);
+        }
+        itemsContainer.appendChild(box);
+      });
+
+      // Trinket
+      trinketBox.innerHTML = "";
+      if (trinket) {
+        const tooltip = document.createElement("div");
+        tooltip.className = "tooltip";
+        tooltip.textContent = trinket.displayName || "Trinket";
+        trinketBox.appendChild(tooltip);
+      }
     };
 
     socket.onerror = (error) => {
       console.error("WebSocket error:", error);
     };
   </script>
+
+  <script src="https://extension-files.twitch.tv/helper/v1/twitch-ext.min.js"></script>
 </body>
 </html>

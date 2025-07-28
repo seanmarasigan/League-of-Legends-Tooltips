@@ -4,30 +4,42 @@ const path = require("path");
 const WebSocket = require("ws");
 const { spawn } = require("child_process");
 
-// Create HTTP server (to serve index.html)
+// Serve static files from src/
+const STATIC_DIR = __dirname;
+
 const server = http.createServer((req, res) => {
-  if (req.url === "/" || req.url === "/index.html") {
-    const filePath = path.join(__dirname, "index.html");
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.writeHead(500);
-        res.end("Error loading index.html");
-      } else {
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(data);
-      }
-    });
-  } else {
-    res.writeHead(404);
-    res.end("Not found");
-  }
+  const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+  let reqPath = parsedUrl.pathname === "/" ? "/index.html" : parsedUrl.pathname;
+  const filePath = path.join(STATIC_DIR, decodeURIComponent(reqPath));
+
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      console.error(`404 Not Found: ${filePath}`);
+      res.writeHead(404);
+      res.end("Not found");
+    } else {
+      const ext = path.extname(filePath);
+      const contentType = {
+        ".html": "text/html",
+        ".js": "application/javascript",
+        ".css": "text/css",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+      }[ext] || "text/plain";
+
+      res.writeHead(200, { "Content-Type": contentType });
+      res.end(data);
+    }
+  });
 });
 
-// FIX: Attach WebSocket to existing HTTP server
-const wss = new WebSocket.Server({ server }); 
+// Attach WebSocket
+const wss = new WebSocket.Server({ server });
 
-// Spawn Python script
-const python = spawn("python", ["src/api.py"]);
+const pythonPath = path.join(__dirname, "api.py");
+const python = spawn("python", [pythonPath]);
+console.log("✅ Spawned Python process:", pythonPath);
 
 let buffer = "";
 
@@ -40,7 +52,6 @@ python.stdout.on("data", (data) => {
     if (!line.trim()) continue;
     try {
       const json = JSON.parse(line);
-      // Broadcast to all connected clients
       wss.clients.forEach((client) => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify(json));
@@ -60,7 +71,6 @@ python.on("close", (code) => {
   console.log(`Python script exited with code ${code}`);
 });
 
-// Start HTTP server (and attached WebSocket server)
-server.listen(3000, () => {
-  console.log("Server listening at http://localhost:3000");
+server.listen(8080, () => {
+  console.log("Server listening at http://localhost:8080");
 });
