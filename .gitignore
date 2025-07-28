@@ -1,0 +1,29 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter notebooks
+*.ipynb
+
+# Test file
+test.py
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# VSCode settings (optional)
+.vscode/
+
+# Environment files
+.env
+*.env
+
+# Logs and temporary files
+*.log
+*.tmp
